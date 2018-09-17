@@ -72,7 +72,9 @@ def input_fn():
   x = np.random.random((1024, 10))
   y = np.random.randint(2, size=(1024, 1))
   x = tf.cast(x, tf.float32)
-  dataset = tf.data.Dataset.from_tensor_slices((x, y))
+  # dataset = tf.data.Dataset.from_tensor_slices((x, y))
+  dataset = tf.data.FixedLengthRecordDataset("test.data", 2)
+  dataset = dataset.map(lambda x: tf.decode_raw(x, tf.uint8)).map(lambda x: (x[0], x[1]))
   dataset = dataset.repeat(100)
   dataset = dataset.batch(32)
   return dataset

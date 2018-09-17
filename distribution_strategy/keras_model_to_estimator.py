@@ -58,10 +58,8 @@ def main(args):
   # Evaluator is a single worker, so using MirroredStrategy.
   config = tf.estimator.RunConfig(
       experimental_distribute=tf.contrib.distribute.DistributeConfig(
-          train_distribute=tf.contrib.distribute.CollectiveAllReduceStrategy(
-              num_gpus_per_worker=2),
-          eval_distribute=tf.contrib.distribute.MirroredStrategy(
-              num_gpus_per_worker=2)))
+          train_distribute=tf.contrib.distribute.MirroredStrategy(),
+          eval_distribute=tf.contrib.distribute.MirroredStrategy()))
   keras_estimator = tf.keras.estimator.model_to_estimator(
       keras_model=model, config=config, model_dir=model_dir)
 
