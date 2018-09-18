@@ -105,18 +105,8 @@ def main(args):
   # Evaluator is a single worker, so using MirroredStrategy.
   run_config = tf.estimator.RunConfig(
       experimental_distribute=tf.contrib.distribute.DistributeConfig(
-          #train_distribute=tf.contrib.distribute.CollectiveAllReduceStrategy(
-          #  devices = ['/job:worker/task:0', '/job:worker/task:1']
-          #),
-          train_distribute=tf.contrib.distribute.MirroredStrategy(
-            #devices = ['/job:worker/task:0', '/job:worker/task:1'],
-            #num_gpus=0
-          ),
-          eval_distribute=tf.contrib.distribute.MirroredStrategy(
-            #devices = ['/job:worker/task:0', '/job:worker/task:1'],
-            #num_gpus=0
-          ),
-          #remote_cluster=resolve_cluster()
+          train_distribute=tf.contrib.distribute.CollectiveAllReduceStrategy(),
+          eval_distribute=tf.contrib.distribute.MirroredStrategy(),
       ))
   keras_estimator = tf.keras.estimator.model_to_estimator(
       keras_model=model, config=run_config, model_dir=model_dir)
