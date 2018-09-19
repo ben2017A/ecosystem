@@ -103,10 +103,12 @@ def main(args):
   # Define DistributionStrategies and convert the Keras Model to an
   # Estimator that utilizes these DistributionStrateges.
   # Evaluator is a single worker, so using MirroredStrategy.
+  cluster = tf.train.ClusterSpec({"worker": ["localhost:1111", "localhost:1112"], "chief": ["localhost:1113"]})
   run_config = tf.estimator.RunConfig(
       experimental_distribute=tf.contrib.distribute.DistributeConfig(
           train_distribute=tf.contrib.distribute.CollectiveAllReduceStrategy(),
           eval_distribute=tf.contrib.distribute.MirroredStrategy(),
+          remote_cluster=cluster
       ))
   keras_estimator = tf.keras.estimator.model_to_estimator(
       keras_model=model, config=run_config, model_dir=model_dir)
