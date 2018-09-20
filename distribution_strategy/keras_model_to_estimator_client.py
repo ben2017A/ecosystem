@@ -18,63 +18,16 @@ from __future__ import division
 from __future__ import print_function
 
 import sys
-import kubernetes
 
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.kafka import KafkaDataset
 
-def _parse_task_name_fn(load_balancer_name):
-  """Parses task type and id from a service name."""
-  splits = load_balancer_name.split('-')
-  if len(splits) <= 3:
-    raise ValueError(
-        "Could recognize load_balancer's name: %r" % load_balancer_name)
-  task_type = splits[-2]
-  if task_type not in ['chief', 'worker', 'ps', 'evaluator']:
-    return None, None
-  task_id = int(splits[-1])
-  assert task_id >= 0
-  return task_type, task_id
-
-
-def resolve_cluster(port=5000, parse_task_name_fn=_parse_task_name_fn):
-  """Queries Kubernetes cluster and gets cluster_spec."""
-  kubernetes.config.load_kube_config()
-  v1 = kubernetes.client.CoreV1Api()
-  ret = v1.list_service_for_all_namespaces()
-  cluster_spec = {}
-  for item in ret.items:
-    if item.status.load_balancer and item.status.load_balancer.ingress:
-      task_type, task_id = parse_task_name_fn(item.metadata.name)
-      if not task_type:
-        continue
-      if task_type not in cluster_spec:
-        cluster_spec[task_type] = []
-      while len(cluster_spec[task_type]) <= task_id:
-        cluster_spec[task_type].append(None)
-      cluster_spec[task_type][task_id] = '%s:%d' % (
-          item.status.load_balancer.ingress[0].ip, port)
-
-  if not cluster_spec:
-    raise ValueError(
-        "Cannot get cluster_spec. It's possible the cluster is not ready.")
-  for task_type, targets in cluster_spec.items():
-    for target in targets:
-      if target is None:
-        raise ValueError(
-            'Not all %s tasks are found in the cluster' % task_type)
-  tf.logging.info('Using cluster_spec %r' % cluster_spec)
-  return cluster_spec
-
-
 def input_fn():
   x = np.random.random((1024, 10))
   y = np.random.randint(2, size=(1024, 1))
   x = tf.cast(x, tf.float32)
-  # dataset = tf.data.Dataset.from_tensor_slices((x, y))
-  dataset = tf.data.FixedLengthRecordDataset("test.data", 2)
-  dataset = dataset.map(lambda x: tf.decode_raw(x, tf.uint8)).map(lambda x: (x[0], x[1]))
+  dataset = tf.data.Dataset.from_tensor_slices((x, y))
   dataset = dataset.repeat(100)
   dataset = dataset.batch(32)
   return dataset
@@ -111,14 +64,17 @@ def main(args):
           remote_cluster=cluster
       ))
   keras_estimator = tf.keras.estimator.model_to_estimator(
-      keras_model=model, config=run_config, model_dir=model_dir)
+      keras_model=model, 
+      config=run_config, 
+      model_dir=model_dir)
 
   # Train and evaluate the model. Evaluation will be skipped if there is not an
   # "evaluator" job in the cluster.
-  tf.estimator.train_and_evaluate(
-      keras_estimator,
-      train_spec=tf.estimator.TrainSpec(input_fn=input_fn),
-      eval_spec=tf.estimator.EvalSpec(input_fn=input_fn))
+  while True:
+    tf.estimator.train_and_evaluate(
+        keras_estimator,
+        train_spec=tf.estimator.TrainSpec(input_fn=input_fn),
+        eval_spec=tf.estimator.EvalSpec(input_fn=input_fn))
 
 
 if __name__ == '__main__':
